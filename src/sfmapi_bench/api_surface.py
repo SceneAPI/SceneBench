@@ -118,7 +118,8 @@ def check_api_surface(
     fetcher: JsonFetcher = fetch_json,
 ) -> ApiSurfaceResult:
     base = base_url.rstrip("/") + "/"
-    query = urlencode({"include_schemas": "true", "page_size": "500"})
+    include_schemas = spec.require_input_schemas or spec.require_output_schemas
+    query = urlencode({"include_schemas": str(include_schemas).lower(), "page_size": "500"})
     started = time.perf_counter()
     backend = fetcher(urljoin(base, "v1/backend"), timeout)
     payload = fetcher(urljoin(base, f"v1/backend/actions?{query}"), timeout)

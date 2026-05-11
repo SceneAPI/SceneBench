@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
+import atexit
+import importlib
 import json
+import os
 import sys
 from pathlib import Path
+from typing import Any
 
 from .api_surface import ApiSurfaceSpec, check_api_surface
 from .presets import PRESETS
@@ -31,6 +36,24 @@ def _build_parser() -> argparse.ArgumentParser:
     api.add_argument("--require-output-schemas", action="store_true")
     api.add_argument("--quiet", action="store_true", help="Only print JSON on failure.")
     api.set_defaults(func=_api_surface)
+
+    local = subcommands.add_parser(
+        "local-api-surface",
+        help="Check an in-process sfmapi backend action catalog.",
+    )
+    local.add_argument(
+        "--backend", required=True, help="Import path like package.module:ClassName."
+    )
+    local.add_argument("--backend-id", required=True, help="Value to register as SFMAPI_BACKEND.")
+    local.add_argument("--preset", choices=sorted(PRESETS), default="generic")
+    local.add_argument("--spec", type=Path, help="JSON API-surface spec to merge with the preset.")
+    local.add_argument("--expect-action", action="append", default=[])
+    local.add_argument("--forbid-action", action="append", default=[])
+    local.add_argument("--forbid-prefix", action="append", default=[])
+    local.add_argument("--require-input-schemas", action="store_true")
+    local.add_argument("--require-output-schemas", action="store_true")
+    local.add_argument("--quiet", action="store_true", help="Only print JSON on failure.")
+    local.set_defaults(func=_local_api_surface)
     return parser
 
 
@@ -41,20 +64,77 @@ def _list_presets(args: argparse.Namespace) -> int:
 
 
 def _api_surface(args: argparse.Namespace) -> int:
+    spec = _spec_from_args(args)
+    result = check_api_surface(args.base_url, spec, timeout=args.timeout)
+    if not args.quiet or not result.ok:
+        print(json.dumps(result.to_json(), indent=2, sort_keys=True))
+    return 0 if result.ok else 1
+
+
+def _local_api_surface(args: argparse.Namespace) -> int:
+    spec = _spec_from_args(args)
+    result = check_api_surface(
+        "http://testserver",
+        spec,
+        fetcher=_local_fetcher(args.backend, args.backend_id),
+    )
+    if not args.quiet or not result.ok:
+        print(json.dumps(result.to_json(), indent=2, sort_keys=True))
+    return 0 if result.ok else 1
+
+
+def _spec_from_args(args: argparse.Namespace) -> ApiSurfaceSpec:
     spec = PRESETS[args.preset]
     if args.spec:
         spec = _merge_specs(spec, ApiSurfaceSpec.from_file(args.spec))
-    spec = spec.merged(
+    return spec.merged(
         expected_actions=args.expect_action,
         forbidden_actions=args.forbid_action,
         forbidden_prefixes=args.forbid_prefix,
         require_input_schemas=True if args.require_input_schemas else None,
         require_output_schemas=True if args.require_output_schemas else None,
     )
-    result = check_api_surface(args.base_url, spec, timeout=args.timeout)
-    if not args.quiet or not result.ok:
-        print(json.dumps(result.to_json(), indent=2, sort_keys=True))
-    return 0 if result.ok else 1
+
+
+def _local_fetcher(backend_import: str, backend_id: str):
+    try:
+        module_name, attr_name = backend_import.split(":", 1)
+    except ValueError as exc:
+        raise SystemExit("--backend must be in module:attribute form") from exc
+
+    module = importlib.import_module(module_name)
+    backend_factory = getattr(module, attr_name)
+
+    from app.adapters.registry import register_backend
+    from app.core.capabilities import reset_capabilities_cache
+    from app.core.config import reset_settings_for_tests
+    from app.db.session import reset_engine_for_tests
+    from app.main import create_app
+    from fastapi.testclient import TestClient
+
+    os.environ["SFMAPI_BACKEND"] = backend_id
+    os.environ.setdefault("SFMAPI_MCP_MODE", "off")
+    settings = reset_settings_for_tests(
+        ephemeral=True,
+        db_url="sqlite+aiosqlite:///file::memory:?cache=shared&uri=true",
+        blob_backend="memory",
+        queue_backend="inline",
+        inline_tasks=True,
+    )
+    asyncio.run(reset_engine_for_tests(settings))
+    reset_capabilities_cache()
+    register_backend(backend_id, backend_factory)
+    client = TestClient(create_app())
+    client.__enter__()
+    atexit.register(client.__exit__, None, None, None)
+
+    def fetch(url: str, timeout: float) -> dict[str, Any]:
+        path = "/" + url.split("://", 1)[-1].split("/", 1)[-1]
+        response = client.get(path)
+        response.raise_for_status()
+        return response.json()
+
+    return fetch
 
 
 def _merge_specs(base: ApiSurfaceSpec, override: ApiSurfaceSpec) -> ApiSurfaceSpec:
