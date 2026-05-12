@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import asyncio
 import atexit
 import importlib
 import json
@@ -182,24 +181,20 @@ def _local_fetcher(backend_import: str, backend_id: str):
     module = importlib.import_module(module_name)
     backend_factory = getattr(module, attr_name)
 
-    from app.adapters.registry import register_backend
-    from app.core.capabilities import reset_capabilities_cache
-    from app.core.config import reset_settings_for_tests
-    from app.db.session import reset_engine_for_tests
-    from app.main import create_app
     from fastapi.testclient import TestClient
+    from sfmapi.backends import register_backend
+    from sfmapi.runtime import create_app
+    from sfmapi.testing import reset_runtime_for_tests_sync
 
     os.environ["SFMAPI_BACKEND"] = backend_id
     os.environ.setdefault("SFMAPI_MCP_MODE", "off")
-    settings = reset_settings_for_tests(
+    reset_runtime_for_tests_sync(
         ephemeral=True,
         db_url="sqlite+aiosqlite:///file::memory:?cache=shared&uri=true",
         blob_backend="memory",
         queue_backend="inline",
         inline_tasks=True,
     )
-    asyncio.run(reset_engine_for_tests(settings))
-    reset_capabilities_cache()
     register_backend(backend_id, backend_factory)
     client = TestClient(create_app())
     client.__enter__()
