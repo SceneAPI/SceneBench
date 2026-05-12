@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Any
 
 from .api_surface import ApiSurfaceSpec, check_api_surface
+from .datasets import DATASETS
+from .geometry import check_sfmapi_cubemap_geometry
 from .presets import PRESETS
 
 
@@ -20,6 +22,41 @@ def _build_parser() -> argparse.ArgumentParser:
 
     list_presets = subcommands.add_parser("list-presets", help="List built-in presets.")
     list_presets.set_defaults(func=_list_presets)
+
+    list_datasets = subcommands.add_parser("list-datasets", help="List benchmark datasets.")
+    list_datasets.add_argument("--backend", help="Only show datasets for this backend.")
+    list_datasets.add_argument("--json", action="store_true", help="Print full JSON manifests.")
+    list_datasets.set_defaults(func=_list_datasets)
+
+    geometry = subcommands.add_parser(
+        "geometry-check",
+        help="Check sfmapi portable cubemap geometry conventions.",
+    )
+    geometry.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+    geometry.set_defaults(func=_geometry_check)
+
+    dataset_inputs = subcommands.add_parser(
+        "dataset-inputs",
+        help="Render backend action inputs for a local benchmark dataset.",
+    )
+    dataset_inputs.add_argument("dataset_id", choices=sorted(DATASETS))
+    dataset_inputs.add_argument(
+        "--dataset-root",
+        required=True,
+        type=Path,
+        help="Path to the unpacked dataset root.",
+    )
+    dataset_inputs.add_argument(
+        "--workspace-root",
+        type=Path,
+        help="Optional root for benchmark output workspaces. Defaults to the dataset root.",
+    )
+    dataset_inputs.add_argument(
+        "--include-missing-optional",
+        action="store_true",
+        help="Include optional files such as POS.txt even if they are not present locally.",
+    )
+    dataset_inputs.set_defaults(func=_dataset_inputs)
 
     api = subcommands.add_parser(
         "api-surface",
@@ -61,6 +98,46 @@ def _list_presets(args: argparse.Namespace) -> int:
     for name in sorted(PRESETS):
         print(name)
     return 0
+
+
+def _list_datasets(args: argparse.Namespace) -> int:
+    datasets = sorted(
+        [
+            dataset
+            for dataset in DATASETS.values()
+            if args.backend is None or dataset.backend == args.backend
+        ],
+        key=lambda item: item.id,
+    )
+    if args.json:
+        print(json.dumps([dataset.to_json() for dataset in datasets], indent=2, sort_keys=True))
+    else:
+        for dataset in datasets:
+            print(f"{dataset.id}\t{dataset.backend}\t{dataset.name}")
+    return 0
+
+
+def _dataset_inputs(args: argparse.Namespace) -> int:
+    dataset = DATASETS[args.dataset_id]
+    payload = dataset.action_payload(
+        args.dataset_root,
+        workspace_root=args.workspace_root,
+        include_missing_optional=args.include_missing_optional,
+    )
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0
+
+
+def _geometry_check(args: argparse.Namespace) -> int:
+    result = check_sfmapi_cubemap_geometry()
+    if args.json:
+        print(json.dumps(result.to_json(), indent=2, sort_keys=True))
+    elif result.ok:
+        print(f"ok\t{result.convention}\t{result.face_count} faces")
+    else:
+        for error in result.errors:
+            print(error)
+    return 0 if result.ok else 1
 
 
 def _api_surface(args: argparse.Namespace) -> int:

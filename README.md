@@ -70,6 +70,33 @@ uv run --with-editable ..\sfmapi --with-editable ..\sfmapi_hloc `
   --preset hloc
 ```
 
+## Benchmark Datasets
+
+The dataset catalog keeps dataset-specific material outside backend APIs. It
+currently includes the three upstream SphereSfM test datasets:
+
+- `spheresfm-campus-parterre`
+- `spheresfm-campus-building`
+- `spheresfm-urban-street`
+
+List dataset manifests, including download mirrors:
+
+```powershell
+uv run sfmapi-bench list-datasets --backend spheresfm --json
+```
+
+After downloading and unpacking a dataset, render the action payload for the
+SphereSfM backend:
+
+```powershell
+uv run sfmapi-bench dataset-inputs spheresfm-campus-parterre `
+  --dataset-root C:\data\spheresfm\campus-parterre `
+  --workspace-root C:\bench\spheresfm\campus-parterre
+```
+
+The generated payload targets `spheresfm.reconstructPanoramaFolder` and includes
+optional `POS.txt` or `camera_mask.png` paths only when those files exist.
+
 ## Development
 
 ```powershell
