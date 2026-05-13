@@ -30,8 +30,8 @@ jobs:
           uv pip install pytest ruff build
           uv pip install -e . --no-deps
       - name: Ruff
-        run: uv run ruff check src tests
+        run: .venv/bin/ruff check src tests
       - name: Test
-        run: uv run pytest -q
+        run: .venv/bin/python -m pytest -q
       - name: Build source distribution
-        run: uv run python -m build --sdist
+        run: .venv/bin/python -m build --sdist
