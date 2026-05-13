@@ -1,0 +1,43 @@
+name: Integration
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Optional live sfmapi base URL for API-surface checks."
+        required: false
+        default: ""
+  schedule:
+    - cron: "19 8 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: SFMAPI/sfmapi
+          path: .deps/sfmapi
+      - uses: astral-sh/setup-uv@v7
+      - name: Install
+        run: |
+          uv venv --seed
+          uv pip install -e .deps/sfmapi
+          uv pip install pytest ruff build
+          uv pip install -e . --no-deps
+      - name: Validate benchmark utilities
+        run: |
+          .venv/bin/sfmapi-bench geometry-check
+          .venv/bin/sfmapi-bench list-datasets
+      - name: Check live API surface
+        if: github.event_name == 'workflow_dispatch' && inputs.base_url != ''
+        run: .venv/bin/sfmapi-bench api-surface --base-url "${{ inputs.base_url }}" --preset generic
