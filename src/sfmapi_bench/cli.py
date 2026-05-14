@@ -195,7 +195,14 @@ def _local_fetcher(backend_import: str, backend_id: str):
         queue_backend="inline",
         inline_tasks=True,
     )
-    register_backend(backend_id, backend_factory)
+    # Alias the backend under its own id as a provider so any stage spec
+    # carrying ``provider=backend_id`` in a recorded fixture routes
+    # correctly through the new provider-aware worker resolver.
+    try:
+        register_backend(backend_id, backend_factory, providers=[backend_id])
+    except TypeError:
+        # Older sfmapi without the ``providers=`` kwarg.
+        register_backend(backend_id, backend_factory)
     client = TestClient(create_app())
     client.__enter__()
     atexit.register(client.__exit__, None, None, None)
