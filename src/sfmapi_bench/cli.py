@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .api_surface import ApiSurfaceSpec, check_api_surface
-from .datasets import DATASETS
+from .datasets import DATASETS, DatasetFetchError, default_cache_dir, fetch_dataset
 from .geometry import check_sfmapi_cubemap_geometry
 from .presets import PRESETS
 
@@ -56,6 +56,26 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Include optional files such as POS.txt even if they are not present locally.",
     )
     dataset_inputs.set_defaults(func=_dataset_inputs)
+
+    fetch = subcommands.add_parser(
+        "fetch",
+        help="Download and extract a benchmark dataset to the local cache.",
+    )
+    fetch.add_argument("dataset_id", choices=sorted(DATASETS))
+    fetch.add_argument(
+        "--cache-dir",
+        type=Path,
+        help=(
+            "Cache root for archives + extracted datasets. "
+            f"Default: {default_cache_dir()} (override via SFMAPI_BENCH_CACHE)."
+        ),
+    )
+    fetch.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-download and re-extract even if the dataset is cached.",
+    )
+    fetch.set_defaults(func=_fetch)
 
     api = subcommands.add_parser(
         "api-surface",
@@ -124,6 +144,16 @@ def _dataset_inputs(args: argparse.Namespace) -> int:
         include_missing_optional=args.include_missing_optional,
     )
     print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0
+
+
+def _fetch(args: argparse.Namespace) -> int:
+    try:
+        extract_dir = fetch_dataset(args.dataset_id, cache_dir=args.cache_dir, force=args.force)
+    except DatasetFetchError as exc:
+        print(f"fetch failed: {exc}", file=sys.stderr)
+        return 1
+    print(json.dumps({"dataset_id": args.dataset_id, "path": str(extract_dir)}, indent=2))
     return 0
 
 

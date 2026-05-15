@@ -659,7 +659,6 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28" },
     { name = "moto", extras = ["s3"], marker = "extra == 'dev'", specifier = ">=5.0" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13" },
     { name = "numpy", specifier = ">=2.0" },
     { name = "opencv-python-headless", marker = "extra == 'projection'", specifier = ">=4.10" },
     { name = "orjson", specifier = ">=3.10" },

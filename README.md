@@ -72,18 +72,45 @@ uv run --with-editable ..\sfmapi --with-editable ..\sfmapi_hloc `
 
 ## Benchmark Datasets
 
-The dataset catalog keeps dataset-specific material outside backend APIs. It
-currently includes the three upstream SphereSfM test datasets:
+The dataset catalog keeps dataset-specific material outside backend APIs. Two
+groups are registered today:
+
+**Portable-pipeline samples (COLMAP, auto-fetchable):**
+
+- `colmap-south-building` — the canonical 128-image SfM "hello world"
+- `colmap-gerrard-hall` — compact 100-image variant for smoke tests / CI
+
+These ride the portable `/v1/projects/{pid}/pipelines/{recipe}` route
+(`pipeline_recipe="incremental"`), have direct HTTPS mirrors, and can be
+downloaded in-process via `sfmapi-bench fetch`. Provided by the COLMAP
+authors for research/demo use — see the COLMAP datasets page for upstream
+terms.
+
+**Backend-action samples (SphereSfM):**
 
 - `spheresfm-campus-parterre`
 - `spheresfm-campus-building`
 - `spheresfm-urban-street`
 
-The benchmark package does not redistribute those datasets. The upstream
-SphereSfM README publishes download mirrors but does not state a dataset
-license, so the catalog reports `license: "not specified by upstream"`.
-Confirm the dataset terms before redistributing data or using it in a
-commercial benchmark report.
+The benchmark package does not redistribute these. The upstream SphereSfM
+README publishes Google Drive / Baidu mirrors but does not state a dataset
+license, so the catalog reports `license: "not specified by upstream"` and
+`fetch_url: null` (no auto-download — grab them manually). Confirm the
+dataset terms before redistributing data or using it in a commercial
+benchmark report.
+
+Fetch + extract one of the auto-fetchable samples to the local cache:
+
+```powershell
+uv run sfmapi-bench fetch colmap-south-building
+# {"dataset_id": "colmap-south-building", "path": "C:\\Users\\…\\sfmapi-bench\\datasets\\colmap-south-building"}
+```
+
+The cache root is `$XDG_CACHE_HOME/sfmapi-bench/datasets` (or
+`%LOCALAPPDATA%\sfmapi-bench\datasets` on Windows); override with
+`SFMAPI_BENCH_CACHE` or `--cache-dir`. The fetch is idempotent — a second
+call short-circuits on the extracted directory. Pass `--force` to
+re-download and re-extract.
 
 List dataset manifests, including download mirrors:
 
