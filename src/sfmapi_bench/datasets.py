@@ -154,6 +154,14 @@ SPHERESFM_DATASETS = (
     ),
 )
 
+# The canonical COLMAP sample archives are published as GitHub release
+# assets under the 3.11.1 release; demuc.de just links to them. We pin
+# the GitHub URLs directly (no second hop) and a sha256 so a tampered
+# mirror would fail :func:`fetch_dataset`'s verify step. After extraction
+# the top-level dir inside each zip is the upstream short name
+# (``south-building/`` / ``gerrard-hall/``) — not the dataset id — and
+# each ships a prebuilt ``sparse/`` model + ``database.db`` alongside
+# the ``images/`` directory.
 COLMAP_DATASETS = (
     BenchmarkDataset(
         id="colmap-south-building",
@@ -163,17 +171,23 @@ COLMAP_DATASETS = (
             "COLMAP's canonical 128-image outdoor SfM sample. The standard "
             "'hello world' dataset for sparse reconstruction — small enough "
             "to map in a few minutes on a single GPU, large enough to "
-            "exercise every pipeline stage."
+            "exercise every pipeline stage. Archive ships images, the "
+            "feature database, and a prebuilt sparse model."
         ),
         source="https://colmap.github.io/datasets.html",
         license=(
             "Provided by the COLMAP authors for research/demo use; see the "
             "COLMAP datasets page for the upstream terms."
         ),
-        mirrors={"upstream": "https://demuc.de/colmap/datasets/south-building.zip"},
+        mirrors={
+            "github_release": "https://github.com/colmap/colmap/releases/download/3.11.1/south-building.zip",
+            "demuc_index": "https://demuc.de/colmap/datasets/",
+        },
         pipeline_recipe="incremental",
-        fetch_url="https://demuc.de/colmap/datasets/south-building.zip",
+        fetch_url="https://github.com/colmap/colmap/releases/download/3.11.1/south-building.zip",
+        fetch_sha256=("d210016bd2de20936a5f02b87fd38a76bf0440c42d045231218372cf9db9a7a1"),
         fetch_format="zip",
+        image_subdir="south-building/images",
         tags=("colmap", "incremental", "outdoor", "sample"),
     ),
     BenchmarkDataset(
@@ -181,20 +195,27 @@ COLMAP_DATASETS = (
         backend="colmap",
         name="Gerrard Hall",
         description=(
-            "COLMAP's compact 100-image outdoor sample. Faster than South "
-            "Building for smoke tests and CI runs while exercising the same "
-            "incremental pipeline."
+            "COLMAP's 100-image outdoor sample. Same canonical layout as "
+            "South Building (images + prebuilt database + sparse model). "
+            "The archive is ~960 MB on disk — not faster than South Building "
+            "for fresh runs, but useful as a second sample to validate that "
+            "demos generalize beyond a single dataset."
         ),
         source="https://colmap.github.io/datasets.html",
         license=(
             "Provided by the COLMAP authors for research/demo use; see the "
             "COLMAP datasets page for the upstream terms."
         ),
-        mirrors={"upstream": "https://demuc.de/colmap/datasets/gerrard-hall.zip"},
+        mirrors={
+            "github_release": "https://github.com/colmap/colmap/releases/download/3.11.1/gerrard-hall.zip",
+            "demuc_index": "https://demuc.de/colmap/datasets/",
+        },
         pipeline_recipe="incremental",
-        fetch_url="https://demuc.de/colmap/datasets/gerrard-hall.zip",
+        fetch_url="https://github.com/colmap/colmap/releases/download/3.11.1/gerrard-hall.zip",
+        fetch_sha256=("58db914f54da5c39c0938121a30e50b7f665281f6bc6f597a93579a1ec616268"),
         fetch_format="zip",
-        tags=("colmap", "incremental", "outdoor", "sample", "compact"),
+        image_subdir="gerrard-hall/images",
+        tags=("colmap", "incremental", "outdoor", "sample"),
     ),
 )
 

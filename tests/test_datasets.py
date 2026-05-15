@@ -106,47 +106,75 @@ def _fake_fetcher(content: bytes):
     return _fetch
 
 
-def test_fetch_dataset_downloads_and_extracts(tmp_path: Path) -> None:
-    cache = tmp_path / "cache"
-    archive = _build_fake_archive("colmap-south-building")
-    extract_dir = fetch_dataset(
-        "colmap-south-building", cache_dir=cache, fetcher=_fake_fetcher(archive)
+@pytest.fixture
+def fake_dataset() -> BenchmarkDataset:
+    """A test-only dataset with NO pinned sha256.
+
+    Fetcher tests exercise extract + idempotency + force semantics using
+    a synthetic in-memory zip; pinning a sha256 here would force every
+    test to also produce the matching pre-image, which is the wrong
+    concern. The dedicated sha256-mismatch test below registers its own
+    fixture with a deliberately wrong hash.
+    """
+    ds = BenchmarkDataset(
+        id="test-fetcher-fake",
+        backend="test",
+        name="fake",
+        description="fetcher test fixture",
+        source="x",
+        license="x",
+        mirrors={},
+        pipeline_recipe="incremental",
+        fetch_url="https://example.invalid/fake.zip",
     )
+    DATASETS[ds.id] = ds
+    try:
+        yield ds
+    finally:
+        DATASETS.pop(ds.id, None)
 
-    assert extract_dir == cache.resolve() / "colmap-south-building"
-    assert (extract_dir / "colmap-south-building" / "images" / "0001.jpg").is_file()
+
+def test_fetch_dataset_downloads_and_extracts(
+    tmp_path: Path, fake_dataset: BenchmarkDataset
+) -> None:
+    cache = tmp_path / "cache"
+    archive = _build_fake_archive(fake_dataset.id)
+    extract_dir = fetch_dataset(fake_dataset.id, cache_dir=cache, fetcher=_fake_fetcher(archive))
+
+    assert extract_dir == cache.resolve() / fake_dataset.id
+    assert (extract_dir / fake_dataset.id / "images" / "0001.jpg").is_file()
     # Archive is preserved so a second call can skip the download.
-    assert (cache / "_archives" / "south-building.zip").is_file()
+    assert (cache / "_archives" / "fake.zip").is_file()
 
 
-def test_fetch_dataset_is_idempotent(tmp_path: Path) -> None:
+def test_fetch_dataset_is_idempotent(tmp_path: Path, fake_dataset: BenchmarkDataset) -> None:
     cache = tmp_path / "cache"
     calls = {"n": 0}
 
     def counting(_dataset: BenchmarkDataset, archive_path: Path) -> Path:
         calls["n"] += 1
         archive_path.parent.mkdir(parents=True, exist_ok=True)
-        archive_path.write_bytes(_build_fake_archive("colmap-south-building"))
+        archive_path.write_bytes(_build_fake_archive(fake_dataset.id))
         return archive_path
 
-    fetch_dataset("colmap-south-building", cache_dir=cache, fetcher=counting)
-    fetch_dataset("colmap-south-building", cache_dir=cache, fetcher=counting)
+    fetch_dataset(fake_dataset.id, cache_dir=cache, fetcher=counting)
+    fetch_dataset(fake_dataset.id, cache_dir=cache, fetcher=counting)
 
     assert calls["n"] == 1, "second fetch must short-circuit on cached extract dir"
 
 
-def test_fetch_dataset_force_redownloads(tmp_path: Path) -> None:
+def test_fetch_dataset_force_redownloads(tmp_path: Path, fake_dataset: BenchmarkDataset) -> None:
     cache = tmp_path / "cache"
     calls = {"n": 0}
 
     def counting(_dataset: BenchmarkDataset, archive_path: Path) -> Path:
         calls["n"] += 1
         archive_path.parent.mkdir(parents=True, exist_ok=True)
-        archive_path.write_bytes(_build_fake_archive("colmap-south-building"))
+        archive_path.write_bytes(_build_fake_archive(fake_dataset.id))
         return archive_path
 
-    fetch_dataset("colmap-south-building", cache_dir=cache, fetcher=counting)
-    fetch_dataset("colmap-south-building", cache_dir=cache, fetcher=counting, force=True)
+    fetch_dataset(fake_dataset.id, cache_dir=cache, fetcher=counting)
+    fetch_dataset(fake_dataset.id, cache_dir=cache, fetcher=counting, force=True)
 
     assert calls["n"] == 2, "force=True must re-fetch + re-extract"
 
@@ -163,7 +191,7 @@ def test_fetch_dataset_rejects_dataset_without_fetch_url(tmp_path: Path) -> None
         fetch_dataset("spheresfm-campus-parterre", cache_dir=tmp_path)
 
 
-def test_fetch_dataset_rejects_zip_slip(tmp_path: Path) -> None:
+def test_fetch_dataset_rejects_zip_slip(tmp_path: Path, fake_dataset: BenchmarkDataset) -> None:
     """An archive trying to escape the extract dir must be rejected
     before any file lands on disk."""
     buf = io.BytesIO()
@@ -172,7 +200,7 @@ def test_fetch_dataset_rejects_zip_slip(tmp_path: Path) -> None:
 
     with pytest.raises(DatasetFetchError, match="path escape"):
         fetch_dataset(
-            "colmap-south-building",
+            fake_dataset.id,
             cache_dir=tmp_path / "cache",
             fetcher=_fake_fetcher(buf.getvalue()),
         )
@@ -211,17 +239,19 @@ def test_default_cache_dir_honors_env(monkeypatch, tmp_path: Path) -> None:
     assert default_cache_dir() == tmp_path / "override"
 
 
-def test_cli_fetch_extracts_into_cache(monkeypatch, tmp_path: Path, capsys) -> None:
+def test_cli_fetch_extracts_into_cache(
+    monkeypatch, tmp_path: Path, capsys, fake_dataset: BenchmarkDataset
+) -> None:
     """The ``fetch`` CLI verb downloads + extracts when the cache is
     empty. Patches the fetcher to avoid the network."""
     import sfmapi_bench.datasets as ds_mod
 
-    archive = _build_fake_archive("colmap-gerrard-hall")
+    archive = _build_fake_archive(fake_dataset.id)
     monkeypatch.setattr(ds_mod, "_http_fetch", _fake_fetcher(archive))
     cache = tmp_path / "cache"
 
-    assert main(["fetch", "colmap-gerrard-hall", "--cache-dir", str(cache)]) == 0
+    assert main(["fetch", fake_dataset.id, "--cache-dir", str(cache)]) == 0
     body = json.loads(capsys.readouterr().out)
-    assert body["dataset_id"] == "colmap-gerrard-hall"
+    assert body["dataset_id"] == fake_dataset.id
     assert Path(body["path"]).is_dir()
-    assert (Path(body["path"]) / "colmap-gerrard-hall" / "images" / "0001.jpg").is_file()
+    assert (Path(body["path"]) / fake_dataset.id / "images" / "0001.jpg").is_file()

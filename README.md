@@ -77,14 +77,17 @@ groups are registered today:
 
 **Portable-pipeline samples (COLMAP, auto-fetchable):**
 
-- `colmap-south-building` — the canonical 128-image SfM "hello world"
-- `colmap-gerrard-hall` — compact 100-image variant for smoke tests / CI
+- `colmap-south-building` — 128 images, ~400 MB zip, the canonical SfM
+  "hello world"
+- `colmap-gerrard-hall` — 100 images, ~960 MB zip, second sample for
+  generalization checks
 
 These ride the portable `/v1/projects/{pid}/pipelines/{recipe}` route
-(`pipeline_recipe="incremental"`), have direct HTTPS mirrors, and can be
-downloaded in-process via `sfmapi-bench fetch`. Provided by the COLMAP
-authors for research/demo use — see the COLMAP datasets page for upstream
-terms.
+(`pipeline_recipe="incremental"`), have direct HTTPS mirrors (GitHub
+release assets), and can be downloaded in-process via
+`sfmapi-bench fetch`. The fetcher verifies the archive against a pinned
+sha256 before extracting. Provided by the COLMAP authors for research /
+demo use — see the COLMAP datasets page for upstream terms.
 
 **Backend-action samples (SphereSfM):**
 
