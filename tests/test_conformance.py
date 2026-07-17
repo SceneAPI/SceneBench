@@ -28,7 +28,7 @@ def test_build_jobs_uses_uv_and_plugin_suite() -> None:
     assert "e2e_plugins.py" in job.command[-1]
     assert "--with-editable" in job.command
     assert any("sfmapi_vismatch[engine]" in part for part in job.command)
-    assert job.env["SFMAPI_E2E_IMAGE_DIR"] == "C:\\data\\bicycle\\images_2"
+    assert job.env["SFMAPI_E2E_IMAGE_DIR"] == str(Path("C:/data/bicycle/images_2"))
 
 
 def test_run_conformance_parses_plugin_verdict() -> None:
