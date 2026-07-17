@@ -618,8 +618,8 @@ wheels = [
 ]
 
 [[package]]
-name = "sfmapi"
-version = "0.0.1"
+name = "sceneapi"
+version = "0.1.0"
 source = { editable = "../sfmapi" }
 dependencies = [
     { name = "aiosqlite" },
@@ -684,8 +684,8 @@ requires-dist = [
 provides-extras = ["dev", "image-processing", "projection", "mcp"]
 
 [[package]]
-name = "sfmapi-bench"
-version = "0.0.1"
+name = "sceneapi-bench"
+version = "0.1.0"
 source = { editable = "." }
 
 [package.optional-dependencies]
@@ -694,14 +694,14 @@ dev = [
     { name = "ruff" },
 ]
 local = [
-    { name = "sfmapi" },
+    { name = "sceneapi" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8" },
-    { name = "sfmapi", marker = "extra == 'local'", editable = "../sfmapi" },
+    { name = "sceneapi", marker = "extra == 'local'", editable = "../sfmapi" },
 ]
 provides-extras = ["local", "dev"]
 

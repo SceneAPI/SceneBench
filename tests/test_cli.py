@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from sfmapi_bench.cli import main
-from sfmapi_bench.presets import PRESETS
+from sceneapi_bench.cli import main
+from sceneapi_bench.presets import PRESETS
 
 
 def test_list_presets(capsys) -> None:

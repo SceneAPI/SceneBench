@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 
-from sfmapi_bench.cli import main
-from sfmapi_bench.geometry import check_sfmapi_cubemap_geometry
+from sceneapi_bench.cli import main
+from sceneapi_bench.geometry import check_sfmapi_cubemap_geometry
 
 
 def test_sfmapi_cubemap_geometry_is_consistent() -> None:

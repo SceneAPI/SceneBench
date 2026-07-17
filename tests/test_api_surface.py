@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sfmapi_bench.api_surface import ApiSurfaceSpec, check_api_surface
+from sceneapi_bench.api_surface import ApiSurfaceSpec, check_api_surface
 
 
 def _fetcher(actions: list[dict], backend: dict | None = None):

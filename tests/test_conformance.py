@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from sfmapi_bench.conformance import (
+from sceneapi_bench.conformance import (
     ALL_SUITES,
     CommandResult,
     ConformanceJob,

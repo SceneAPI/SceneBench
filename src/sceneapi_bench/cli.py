@@ -25,7 +25,7 @@ from .presets import PRESETS
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="sfmapi-bench")
+    parser = argparse.ArgumentParser(prog="sceneapi-bench")
     subcommands = parser.add_subparsers(dest="command", required=True)
 
     list_presets = subcommands.add_parser("list-presets", help="List built-in presets.")
@@ -109,7 +109,7 @@ def _build_parser() -> argparse.ArgumentParser:
     local.add_argument(
         "--backend", required=True, help="Import path like package.module:ClassName."
     )
-    local.add_argument("--backend-id", required=True, help="Value to register as SFMAPI_BACKEND.")
+    local.add_argument("--backend-id", required=True, help="Value to register as SCENEAPI_BACKEND.")
     local.add_argument("--preset", choices=sorted(PRESETS), default="generic")
     local.add_argument("--spec", type=Path, help="JSON API-surface spec to merge with the preset.")
     local.add_argument("--expect-action", action="append", default=[])
@@ -169,7 +169,7 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument("--output", type=Path, help="Write JSON report to this path.")
     run.set_defaults(func=_run_conformance)
 
-    report = subcommands.add_parser("report", help="Read a sfmapi-bench JSON report.")
+    report = subcommands.add_parser("report", help="Read a sceneapi-bench JSON report.")
     report.add_argument("path", type=Path)
     report.add_argument("--format", choices=("text", "json"), default="text")
     report.set_defaults(func=_report)
@@ -336,12 +336,12 @@ def _local_fetcher(backend_import: str, backend_id: str):
     backend_factory = getattr(module, attr_name)
 
     from fastapi.testclient import TestClient
-    from sfmapi.backends import register_backend
-    from sfmapi.runtime import create_app
-    from sfmapi.testing import reset_runtime_for_tests_sync
+    from sceneapi.backends import register_backend
+    from sceneapi.runtime import create_app
+    from sceneapi.testing import reset_runtime_for_tests_sync
 
-    os.environ["SFMAPI_BACKEND"] = backend_id
-    os.environ.setdefault("SFMAPI_MCP_MODE", "off")
+    os.environ["SCENEAPI_BACKEND"] = backend_id
+    os.environ.setdefault("SCENEAPI_MCP_MODE", "off")
     reset_runtime_for_tests_sync(
         ephemeral=True,
         db_url="sqlite+aiosqlite:///file::memory:?cache=shared&uri=true",

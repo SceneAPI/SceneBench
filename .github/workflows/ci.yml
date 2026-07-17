@@ -20,13 +20,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          repository: SFMAPI/sfmapi
-          path: .deps/sfmapi
+          repository: SceneAPI/SceneAPI
+          path: .deps/sceneapi
       - uses: astral-sh/setup-uv@v7
       - name: Install
         run: |
           uv venv --seed
-          uv pip install -e .deps/sfmapi
+          uv pip install -e .deps/sceneapi
           uv pip install pytest ruff build
           uv pip install -e . --no-deps
       - name: Ruff
