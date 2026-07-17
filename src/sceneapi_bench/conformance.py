@@ -50,7 +50,7 @@ ALL_SUITES: tuple[SuiteName, ...] = (
 
 PROJECTS_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_SFMAPI_ROOT = PROJECTS_ROOT / "sfmapi"
-DEFAULT_CPP_ROOT = PROJECTS_ROOT / "sfmapi-cpp"
+DEFAULT_CPP_ROOT = PROJECTS_ROOT / "sceneapi-cpp"
 DEFAULT_BICYCLE_IMAGE_DIR = PROJECTS_ROOT / "data" / "bicycle" / "images_2"
 
 _VERDICT_RE = re.compile(r"\[(?:PY-|CPP-)?([A-Z][A-Z0-9_/-]*)\]")
@@ -174,7 +174,7 @@ def build_jobs(
     dataset: str = "bicycle",
     backend: BackendName = "both",
     sfmapi_root: Path = DEFAULT_SFMAPI_ROOT,
-    sfmapi_cpp_root: Path = DEFAULT_CPP_ROOT,
+    sceneapi_cpp_root: Path = DEFAULT_CPP_ROOT,
     image_dir: Path | None = None,
     uv_executable: str = "uv",
     local_plugins: bool = False,
@@ -198,7 +198,7 @@ def build_jobs(
         effective_backend = _effective_backend(suite, backend)
         script, args, suite_timeout = _suite_script_args(
             suite=suite,
-            cpp_root=sfmapi_cpp_root,
+            cpp_root=sceneapi_cpp_root,
             image_dir=resolved_image_dir,
             models=models,
             all_supported_models=all_supported_models,

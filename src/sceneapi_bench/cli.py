@@ -139,7 +139,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Backend tier label. The plugins suite exercises both tiers.",
     )
     run.add_argument("--sfmapi-root", type=Path, default=DEFAULT_SFMAPI_ROOT)
-    run.add_argument("--sfmapi-cpp-root", type=Path, default=DEFAULT_CPP_ROOT)
+    run.add_argument("--sceneapi-cpp-root", type=Path, default=DEFAULT_CPP_ROOT)
     run.add_argument("--image-dir", type=Path, help="Image directory for bicycle-backed suites.")
     run.add_argument("--uv", default="uv", help="UV executable to use.")
     run.add_argument(
@@ -260,7 +260,7 @@ def _run_conformance(args: argparse.Namespace) -> int:
             dataset=args.dataset,
             backend=args.backend,
             sfmapi_root=args.sfmapi_root,
-            sfmapi_cpp_root=args.sfmapi_cpp_root,
+            sceneapi_cpp_root=args.sceneapi_cpp_root,
             image_dir=args.image_dir,
             uv_executable=args.uv,
             local_plugins=args.local_plugins,

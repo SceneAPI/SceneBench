@@ -17,7 +17,7 @@ def test_build_jobs_uses_uv_and_plugin_suite() -> None:
     jobs = build_jobs(
         suites=("plugins",),
         sfmapi_root=Path("C:/repo/sfmapi"),
-        sfmapi_cpp_root=Path("C:/repo/sfmapi-cpp"),
+        sceneapi_cpp_root=Path("C:/repo/sceneapi-cpp"),
         image_dir=Path("C:/data/bicycle/images_2"),
         local_plugins=True,
     )
@@ -35,7 +35,7 @@ def test_run_conformance_parses_plugin_verdict() -> None:
     jobs = build_jobs(
         suites=("plugins",),
         sfmapi_root=Path("C:/repo/sfmapi"),
-        sfmapi_cpp_root=Path("C:/repo/sfmapi-cpp"),
+        sceneapi_cpp_root=Path("C:/repo/sceneapi-cpp"),
         image_dir=Path("C:/data/bicycle/images_2"),
     )
 
@@ -60,7 +60,7 @@ def test_run_conformance_marks_missing_success_marker_unknown() -> None:
     jobs = build_jobs(
         suites=("containers",),
         sfmapi_root=Path("C:/repo/sfmapi"),
-        sfmapi_cpp_root=Path("C:/repo/sfmapi-cpp"),
+        sceneapi_cpp_root=Path("C:/repo/sceneapi-cpp"),
         image_dir=Path("C:/data/bicycle/images_2"),
     )
 
@@ -74,7 +74,7 @@ def test_build_jobs_labels_cpp_only_suites_as_cpp() -> None:
     jobs = build_jobs(
         suites=("vismatch",),
         sfmapi_root=Path("C:/repo/sfmapi"),
-        sfmapi_cpp_root=Path("C:/repo/sfmapi-cpp"),
+        sceneapi_cpp_root=Path("C:/repo/sceneapi-cpp"),
         image_dir=Path("C:/data/bicycle/images_2"),
     )
 
@@ -85,7 +85,7 @@ def test_build_jobs_all_suites_have_scripts() -> None:
     jobs = build_jobs(
         suites=ALL_SUITES,
         sfmapi_root=Path("C:/repo/sfmapi"),
-        sfmapi_cpp_root=Path("C:/repo/sfmapi-cpp"),
+        sceneapi_cpp_root=Path("C:/repo/sceneapi-cpp"),
         image_dir=Path("C:/data/bicycle/images_2"),
     )
 
@@ -105,7 +105,7 @@ def test_splatting_suite_adds_all_local_plugin_repos() -> None:
     jobs = build_jobs(
         suites=("splatting",),
         sfmapi_root=Path("C:/repo/sfmapi"),
-        sfmapi_cpp_root=Path("C:/repo/sfmapi-cpp"),
+        sceneapi_cpp_root=Path("C:/repo/sceneapi-cpp"),
         image_dir=Path("C:/data/bicycle/images_2"),
         local_plugins=True,
     )
@@ -127,7 +127,7 @@ def test_run_conformance_fails_skip_statuses() -> None:
     jobs = build_jobs(
         suites=("hloc",),
         sfmapi_root=Path("C:/repo/sfmapi"),
-        sfmapi_cpp_root=Path("C:/repo/sfmapi-cpp"),
+        sceneapi_cpp_root=Path("C:/repo/sceneapi-cpp"),
         image_dir=Path("C:/data/bicycle/images_2"),
     )
 
@@ -145,7 +145,7 @@ def test_mcp_suite_uses_mcp_extra() -> None:
     jobs = build_jobs(
         suites=("mcp",),
         sfmapi_root=Path("C:/repo/sfmapi"),
-        sfmapi_cpp_root=Path("C:/repo/sfmapi-cpp"),
+        sceneapi_cpp_root=Path("C:/repo/sceneapi-cpp"),
         image_dir=Path("C:/data/bicycle/images_2"),
     )
 
