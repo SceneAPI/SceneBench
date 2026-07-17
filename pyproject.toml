@@ -3,7 +3,7 @@ name = "sceneapi-bench"
 version = "0.1.0"
 description = "Reusable benchmark and conformance utilities for sceneapi-compatible backend APIs"
 readme = "README.md"
-license = { text = "AGPL-3.0-or-later" }
+license = { text = "Apache-2.0" }
 requires-python = ">=3.12,<3.13"
 dependencies = []
 

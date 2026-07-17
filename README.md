@@ -199,7 +199,7 @@ uv run ruff format --check src tests
 
 ## License
 
-The benchmark utility code is licensed under `AGPL-3.0-or-later`; see
+The benchmark utility code is licensed under `Apache-2.0`; see
 `LICENSE`. Dataset entries are metadata only. The listed SphereSfM datasets are
 not redistributed by this package and currently have no explicit upstream
 dataset license.
