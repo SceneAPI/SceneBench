@@ -70,6 +70,51 @@ uv run --with-editable ..\sfmapi --with-editable ..\sfmapi_hloc `
   --preset hloc
 ```
 
+## Plugin E2E Conformance
+
+`sfmapi-bench run` wraps the repo E2E suites that exercise installed plugins
+through UV. The default `plugins` suite drives the Python API and the C++ API +
+bridge against the same provider matrix. Missing engines, unavailable devices,
+and skipped rows are reported as conformance failures so the root cause is
+visible in the report tails.
+
+```powershell
+uv run sfmapi-bench run `
+  --suite plugins `
+  --dataset bicycle `
+  --backend both `
+  --image-dir C:\Users\opsiclear\Desktop\projects\data\bicycle\images_2 `
+  --local-plugins `
+  --json
+```
+
+Additional suites:
+
+- `vismatch`: HLOC pairs -> Vismatch matching on a bicycle subset.
+- `containers`: explicit `container_service` install/execution behavior.
+- `bicycle`: endpoint sweep, features, actions, and reconstruction pipeline.
+- `hloc`: HLOC matcher/reconstruction/localization matrix.
+- `pairs`: COLMAP/PyCOLMAP/SphereSfM pair-mode and matcher matrix.
+- `retrieval`: HLOC NetVLAD retrieval plus COLMAP vocab-tree build/match.
+- `splatting`: build and run all registered 3DGS plugin containers on bicycle.
+- `official-plugins`: heaviest official plugin action probes.
+- `bridge`, `bridge-plugin-state`, `colmap`, `sdk`, `mcp`, `api-parity`:
+  bridge, plugin-state, COLMAP, SDK, MCP, and two-way API parity checks.
+
+Useful variants:
+
+```powershell
+uv run sfmapi-bench run --suite vismatch --dataset bicycle --backend cpp --models xfeat --device cpu
+uv run sfmapi-bench run --suite vismatch --backend cpp --all-supported-models --device cuda
+uv run sfmapi-bench run --suite all --output .\bench-report.json
+uv run sfmapi-bench report .\bench-report.json --format json
+```
+
+Use `--dry-run --json` to validate command construction without running heavy
+reconstruction work. Use `--with-editable <path>` for extra local plugin repos;
+`--local-plugins` adds sibling sfmapi plugin repos, including
+`sfmapi_vismatch[engine]`.
+
 ## Benchmark Datasets
 
 The dataset catalog keeps dataset-specific material outside backend APIs. Two
@@ -77,43 +122,45 @@ groups are registered today:
 
 **Portable-pipeline samples (COLMAP, auto-fetchable):**
 
-- `colmap-south-building` — 128 images, ~400 MB zip, the canonical SfM
+- `colmap-south-building` - 128 images, about 400 MB zip, the canonical SfM
   "hello world"
-- `colmap-gerrard-hall` — 100 images, ~960 MB zip, second sample for
+- `colmap-gerrard-hall` - 100 images, about 960 MB zip, second sample for
   generalization checks
 
 These ride the portable `/v1/projects/{pid}/pipelines/{recipe}` route
-(`pipeline_recipe="incremental"`), have direct HTTPS mirrors (GitHub
-release assets), and can be downloaded in-process via
-`sfmapi-bench fetch`. The fetcher verifies the archive against a pinned
-sha256 before extracting. Provided by the COLMAP authors for research /
-demo use — see the COLMAP datasets page for upstream terms.
+(`pipeline_recipe="incremental"`), have direct HTTPS mirrors (GitHub release
+assets), and can be downloaded in-process via `sfmapi-bench fetch`. The fetcher
+verifies the archive against a pinned sha256 before extracting. Provided by the
+COLMAP authors for research/demo use; see the COLMAP datasets page for upstream
+terms.
 
 **Backend-action samples (SphereSfM):**
 
-- `spheresfm-campus-parterre`
+- `spheresfm-campus-parterre` - auto-fetchable from the upstream public Google
+  Drive mirror and verified by sha256.
 - `spheresfm-campus-building`
 - `spheresfm-urban-street`
 
 The benchmark package does not redistribute these. The upstream SphereSfM
-README publishes Google Drive / Baidu mirrors but does not state a dataset
-license, so the catalog reports `license: "not specified by upstream"` and
-`fetch_url: null` (no auto-download — grab them manually). Confirm the
-dataset terms before redistributing data or using it in a commercial
-benchmark report.
+README publishes Google Drive/Baidu mirrors but does not state a dataset
+license, so the catalog reports `license: "not specified by upstream"`.
+`spheresfm-campus-parterre` can be downloaded directly for conformance runs;
+the other SphereSfM samples remain manual-only until direct, verifiable
+archives are pinned. Confirm the dataset terms before redistributing data or
+using it in a commercial benchmark report.
 
-Fetch + extract one of the auto-fetchable samples to the local cache:
+Fetch and extract an auto-fetchable sample to the local cache:
 
 ```powershell
 uv run sfmapi-bench fetch colmap-south-building
-# {"dataset_id": "colmap-south-building", "path": "C:\\Users\\…\\sfmapi-bench\\datasets\\colmap-south-building"}
+uv run sfmapi-bench fetch spheresfm-campus-parterre
 ```
 
-The cache root is `$XDG_CACHE_HOME/sfmapi-bench/datasets` (or
-`%LOCALAPPDATA%\sfmapi-bench\datasets` on Windows); override with
-`SFMAPI_BENCH_CACHE` or `--cache-dir`. The fetch is idempotent — a second
-call short-circuits on the extracted directory. Pass `--force` to
-re-download and re-extract.
+The cache root is `$XDG_CACHE_HOME/sfmapi-bench/datasets` or
+`%LOCALAPPDATA%\sfmapi-bench\datasets` on Windows; override with
+`SFMAPI_BENCH_CACHE` or `--cache-dir`. The fetch is idempotent: a second call
+short-circuits on the extracted directory. Pass `--force` to re-download and
+re-extract.
 
 List dataset manifests, including download mirrors:
 

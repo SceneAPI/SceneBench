@@ -12,6 +12,7 @@ from sfmapi_bench.datasets import (
     DATASETS,
     BenchmarkDataset,
     DatasetFetchError,
+    _google_drive_confirm_url,
     default_cache_dir,
     fetch_dataset,
 )
@@ -31,6 +32,13 @@ def test_spheresfm_datasets_are_registered() -> None:
         assert dataset.action_id == "spheresfm.reconstructPanoramaFolder"
         assert "google_drive" in dataset.mirrors
         assert "baidu_disk" in dataset.mirrors
+
+    parterre = DATASETS["spheresfm-campus-parterre"]
+    assert parterre.fetch_url is not None
+    assert parterre.fetch_url.startswith("https://drive.google.com/uc?")
+    assert parterre.fetch_sha256 == (
+        "3d0537a7d93f2d85593151ae6a6af6ac8e0c916aac46d46ab31f46daf74179d4"
+    )
 
 
 def test_dataset_inputs_uses_local_paths(tmp_path: Path, capsys) -> None:
@@ -185,10 +193,27 @@ def test_fetch_dataset_rejects_unknown_id(tmp_path: Path) -> None:
 
 
 def test_fetch_dataset_rejects_dataset_without_fetch_url(tmp_path: Path) -> None:
-    """The SphereSfM entries lack a direct HTTP URL (Drive/Baidu only);
-    fetch_dataset must refuse rather than guess."""
+    """SphereSfM entries without an auto-fetchable URL must still fail
+    explicitly instead of guessing from a human mirror."""
     with pytest.raises(DatasetFetchError, match="no fetch_url"):
-        fetch_dataset("spheresfm-campus-parterre", cache_dir=tmp_path)
+        fetch_dataset("spheresfm-campus-building", cache_dir=tmp_path)
+
+
+def test_google_drive_confirm_url_supports_warning_form() -> None:
+    body = """
+    <form action="https://drive.usercontent.google.com/download">
+      <input type="hidden" name="id" value="file-123">
+      <input type="hidden" name="export" value="download">
+      <input type="hidden" name="confirm" value="t">
+      <input type="hidden" name="uuid" value="abc">
+    </form>
+    """
+
+    url = _google_drive_confirm_url("https://drive.google.com/uc?id=file-123", body, cookies=[])
+
+    assert url.startswith("https://drive.usercontent.google.com/download?")
+    assert "id=file-123" in url
+    assert "confirm=t" in url
 
 
 def test_fetch_dataset_rejects_zip_slip(tmp_path: Path, fake_dataset: BenchmarkDataset) -> None:

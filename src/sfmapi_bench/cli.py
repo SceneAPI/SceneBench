@@ -10,6 +10,15 @@ from pathlib import Path
 from typing import Any
 
 from .api_surface import ApiSurfaceSpec, check_api_surface
+from .conformance import (
+    ALL_SUITES,
+    DEFAULT_CPP_ROOT,
+    DEFAULT_SFMAPI_ROOT,
+    SuiteName,
+    build_jobs,
+    report_from_file,
+    run_conformance,
+)
 from .datasets import DATASETS, DatasetFetchError, default_cache_dir, fetch_dataset
 from .geometry import check_sfmapi_cubemap_geometry
 from .presets import PRESETS
@@ -110,6 +119,60 @@ def _build_parser() -> argparse.ArgumentParser:
     local.add_argument("--require-output-schemas", action="store_true")
     local.add_argument("--quiet", action="store_true", help="Only print JSON on failure.")
     local.set_defaults(func=_local_api_surface)
+
+    run = subcommands.add_parser(
+        "run",
+        help="Run sfmapi conformance/E2E benchmark suites through UV.",
+    )
+    run.add_argument(
+        "--suite",
+        action="append",
+        choices=(*ALL_SUITES, "all"),
+        required=True,
+        help="Suite to run. Repeat for multiple suites, or pass all.",
+    )
+    run.add_argument("--dataset", default="bicycle", help="Dataset label for the report.")
+    run.add_argument(
+        "--backend",
+        choices=("python", "cpp", "both"),
+        default="both",
+        help="Backend tier label. The plugins suite exercises both tiers.",
+    )
+    run.add_argument("--sfmapi-root", type=Path, default=DEFAULT_SFMAPI_ROOT)
+    run.add_argument("--sfmapi-cpp-root", type=Path, default=DEFAULT_CPP_ROOT)
+    run.add_argument("--image-dir", type=Path, help="Image directory for bicycle-backed suites.")
+    run.add_argument("--uv", default="uv", help="UV executable to use.")
+    run.add_argument(
+        "--local-plugins",
+        action="store_true",
+        help="Add sibling plugin repos with --with-editable, including sfmapi_vismatch[engine].",
+    )
+    run.add_argument(
+        "--with-editable",
+        action="append",
+        default=[],
+        help="Additional editable package passed through to uv run.",
+    )
+    run.add_argument("--models", default="", help="Comma-separated Vismatch models.")
+    run.add_argument(
+        "--all-supported-models",
+        action="store_true",
+        help="Run every supported Vismatch model in the vismatch suite.",
+    )
+    run.add_argument("--device", default="cpu", help="Device for model-backed suites.")
+    run.add_argument("--max-images", type=int, default=6, help="Image subset size.")
+    run.add_argument("--timeout", type=float, default=3600.0, help="Minimum per-suite timeout.")
+    run.add_argument(
+        "--dry-run", action="store_true", help="Build report without executing suites."
+    )
+    run.add_argument("--json", action="store_true", help="Print JSON report.")
+    run.add_argument("--output", type=Path, help="Write JSON report to this path.")
+    run.set_defaults(func=_run_conformance)
+
+    report = subcommands.add_parser("report", help="Read a sfmapi-bench JSON report.")
+    report.add_argument("path", type=Path)
+    report.add_argument("--format", choices=("text", "json"), default="text")
+    report.set_defaults(func=_report)
     return parser
 
 
@@ -187,6 +250,67 @@ def _local_api_surface(args: argparse.Namespace) -> int:
     if not args.quiet or not result.ok:
         print(json.dumps(result.to_json(), indent=2, sort_keys=True))
     return 0 if result.ok else 1
+
+
+def _run_conformance(args: argparse.Namespace) -> int:
+    suites = _expand_suites(args.suite)
+    try:
+        jobs = build_jobs(
+            suites=suites,
+            dataset=args.dataset,
+            backend=args.backend,
+            sfmapi_root=args.sfmapi_root,
+            sfmapi_cpp_root=args.sfmapi_cpp_root,
+            image_dir=args.image_dir,
+            uv_executable=args.uv,
+            local_plugins=args.local_plugins,
+            with_editables=args.with_editable,
+            models=args.models,
+            all_supported_models=args.all_supported_models,
+            device=args.device,
+            max_images=args.max_images,
+            timeout_seconds=args.timeout,
+        )
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    bench_report = run_conformance(jobs=jobs, dry_run=args.dry_run)
+    payload = bench_report.to_json()
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        _print_report_summary(payload)
+    return 0 if bench_report.ok else 1
+
+
+def _report(args: argparse.Namespace) -> int:
+    bench_report = report_from_file(args.path)
+    payload = bench_report.to_json()
+    if args.format == "json":
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        _print_report_summary(payload)
+    return 0 if bench_report.ok else 1
+
+
+def _expand_suites(raw: list[str]) -> tuple[SuiteName, ...]:
+    if "all" in raw:
+        return ALL_SUITES
+    return tuple(raw)  # type: ignore[return-value]
+
+
+def _print_report_summary(payload: dict[str, Any]) -> None:
+    print(f"ok={payload.get('ok')}")
+    for item in payload.get("results", []):
+        counts = item.get("status_counts") or {}
+        count_text = ", ".join(f"{key}={value}" for key, value in sorted(counts.items()))
+        print(
+            f"{item.get('suite')}\t{item.get('verdict')}\t"
+            f"returncode={item.get('returncode')}\t{count_text}"
+        )
 
 
 def _spec_from_args(args: argparse.Namespace) -> ApiSurfaceSpec:

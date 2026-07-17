@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import hashlib
+import html
 import os
+import re
 import shutil
 import zipfile
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from http.cookiejar import CookieJar
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
-from urllib.request import Request, urlopen
+from urllib.parse import parse_qs, quote, urlencode, urljoin, urlsplit
+from urllib.request import HTTPCookieProcessor, Request, build_opener, urlopen
 
 
 @dataclass(frozen=True)
@@ -30,9 +33,9 @@ class BenchmarkDataset:
     action_id: str | None = None
     pipeline_recipe: str | None = None
     # When ``fetch_url`` is set, the dataset is fetchable in-process via
-    # :func:`fetch_dataset`. Mirrors lacking an HTTP-accessible URL
-    # (Baidu, Google Drive auth flows) stay listed for humans but cannot
-    # be auto-downloaded.
+    # :func:`fetch_dataset`. Google Drive public-file confirmation pages
+    # are handled by the fetcher; mirrors requiring auth stay listed for
+    # humans but cannot be auto-downloaded.
     fetch_url: str | None = None
     fetch_sha256: str | None = None
     fetch_format: str = "zip"
@@ -101,6 +104,9 @@ SPHERESFM_DATASETS = (
             "baidu_disk": "https://pan.baidu.com/s/1C259Ygf_lJHd5iT-gmJWGA?pwd=5cqb",
         },
         action_id="spheresfm.reconstructPanoramaFolder",
+        fetch_url="https://drive.google.com/uc?export=download&id=1KB1uk9wEUvEGVnFOwcrw4r_KxUk711eb",
+        fetch_sha256=("3d0537a7d93f2d85593151ae6a6af6ac8e0c916aac46d46ab31f46daf74179d4"),
+        fetch_format="zip",
         tags=("spherical", "erp", "panorama", "campus"),
         default_inputs={
             "camera_params": "1,3520,1760",
@@ -268,12 +274,117 @@ def _archive_name(dataset: BenchmarkDataset) -> str:
             f"one of: {sorted(dataset.mirrors.values())}"
         )
     parsed = urlsplit(dataset.fetch_url)
-    return Path(parsed.path).name or f"{dataset.id}.archive"
+    suffix = ".zip" if dataset.fetch_format == "zip" else ".archive"
+    return Path(parsed.path).name if Path(parsed.path).suffix else f"{dataset.id}{suffix}"
+
+
+def _is_google_drive_url(url: str) -> bool:
+    return urlsplit(url).netloc.lower() in {
+        "drive.google.com",
+        "drive.usercontent.google.com",
+    }
+
+
+def _google_drive_file_id(url: str) -> str | None:
+    parsed = urlsplit(url)
+    query_id = parse_qs(parsed.query).get("id", [None])[0]
+    if query_id:
+        return query_id
+    match = re.search(r"/file/d/([^/]+)", parsed.path)
+    return match.group(1) if match else None
+
+
+def _html_input_values(body: str) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for match in re.finditer(r"<input\b[^>]*>", body, flags=re.IGNORECASE):
+        tag = match.group(0)
+        name = re.search(r'\bname=["\']([^"\']+)["\']', tag, flags=re.IGNORECASE)
+        value = re.search(r'\bvalue=["\']([^"\']*)["\']', tag, flags=re.IGNORECASE)
+        if name:
+            values[html.unescape(name.group(1))] = html.unescape(value.group(1) if value else "")
+    return values
+
+
+def _google_drive_confirm_url(source_url: str, body: str, cookies: CookieJar) -> str:
+    decoded = html.unescape(body)
+    match = re.search(
+        r'href=["\']([^"\']*(?:uc|download)[^"\']*confirm=[^"\']*)["\']',
+        decoded,
+        flags=re.IGNORECASE,
+    )
+    if match:
+        return urljoin(source_url, match.group(1))
+
+    download_url = re.search(r'"downloadUrl"\s*:\s*"([^"]+)"', body)
+    if download_url:
+        return (
+            download_url.group(1)
+            .replace(r"\/", "/")
+            .replace(r"\u003d", "=")
+            .replace(r"\u0026", "&")
+        )
+
+    action = re.search(r'<form\b[^>]*\baction=["\']([^"\']+)["\']', decoded, flags=re.IGNORECASE)
+    if action:
+        fields = _html_input_values(decoded)
+        if fields:
+            return f"{html.unescape(action.group(1))}?{urlencode(fields)}"
+
+    file_id = _google_drive_file_id(source_url)
+    token = next(
+        (cookie.value for cookie in cookies if cookie.name.startswith("download_warning")),
+        None,
+    )
+    if file_id and token:
+        return (
+            "https://drive.google.com/uc?"
+            f"export=download&confirm={quote(token)}&id={quote(file_id)}"
+        )
+    raise DatasetFetchError("Google Drive did not provide a downloadable confirmation URL")
+
+
+def _response_is_html(response: Any) -> bool:
+    content_type = str(response.headers.get("Content-Type", "")).lower()
+    return "text/html" in content_type or "text/plain" in content_type
+
+
+def _stream_response(response: Any, target: Path) -> None:
+    with target.open("wb") as out:
+        shutil.copyfileobj(response, out, length=1024 * 1024)
+
+
+def _google_drive_fetch(dataset: BenchmarkDataset, archive_path: Path) -> Path:
+    if dataset.fetch_url is None:
+        raise DatasetFetchError(f"dataset {dataset.id!r} has no fetch_url")
+    archive_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = archive_path.with_suffix(archive_path.suffix + ".partial")
+    cookies = CookieJar()
+    opener = build_opener(HTTPCookieProcessor(cookies))
+    headers = {"User-Agent": "sfmapi-bench/0.0 (+https://sfmapi.github.io)"}
+    with opener.open(Request(dataset.fetch_url, headers=headers), timeout=120) as response:
+        if not _response_is_html(response):
+            _stream_response(response, tmp_path)
+            tmp_path.replace(archive_path)
+            return archive_path
+        body = response.read().decode("utf-8", "replace")
+    confirm_url = _google_drive_confirm_url(dataset.fetch_url, body, cookies)
+    with opener.open(Request(confirm_url, headers=headers), timeout=120) as response:
+        if _response_is_html(response):
+            snippet = response.read(500).decode("utf-8", "replace")
+            raise DatasetFetchError(
+                "Google Drive confirmation did not return an archive; "
+                f"response starts with {snippet!r}"
+            )
+        _stream_response(response, tmp_path)
+    tmp_path.replace(archive_path)
+    return archive_path
 
 
 def _http_fetch(dataset: BenchmarkDataset, archive_path: Path) -> Path:
     if dataset.fetch_url is None:
         raise DatasetFetchError(f"dataset {dataset.id!r} has no fetch_url")
+    if _is_google_drive_url(dataset.fetch_url):
+        return _google_drive_fetch(dataset, archive_path)
     archive_path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = archive_path.with_suffix(archive_path.suffix + ".partial")
     # User-agent set so plain demuc.de doesn't 403 the urllib default.
