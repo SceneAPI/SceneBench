@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from sceneapi_bench.conformance import (
+from scenebench.conformance import (
     ALL_SUITES,
     CommandResult,
     ConformanceJob,

@@ -1,10 +1,10 @@
-# sceneapi-bench
+# scenebench
 
 Standalone benchmark and conformance utilities for sceneapi-compatible APIs.
 
 Renamed from `sfmapi-bench` at 0.1.0 as part of the sfmapi → sceneapi
-migration: the distribution is `sceneapi-bench`, the import package is
-`sceneapi_bench`, and the CLI binary is `sceneapi-bench`. The old
+migration: the distribution is `scenebench`, the import package is
+`scenebench`, and the CLI binary is `scenebench`. The old
 `sfmapi-bench` binary name ships as a deprecated alias for one release
 (removed in 0.2.0). Bench-owned environment names (`SFMAPI_BENCH_CACHE`,
 `SFMAPI_BENCH_BICYCLE_IMAGE_DIR`) and the on-disk cache directory name are
@@ -27,7 +27,7 @@ uv sync --extra dev
 Run a built-in preset against a live server:
 
 ```powershell
-uv run sceneapi-bench api-surface --preset hloc --base-url http://127.0.0.1:8000
+uv run scenebench api-surface --preset hloc --base-url http://127.0.0.1:8000
 ```
 
 Built-in presets currently cover:
@@ -42,7 +42,7 @@ Built-in presets currently cover:
 Check another backend by passing explicit expectations:
 
 ```powershell
-uv run sceneapi-bench api-surface `
+uv run scenebench api-surface `
   --base-url http://127.0.0.1:8000 `
   --expect-action colmap.feature_extractor `
   --expect-action colmap.mapper `
@@ -61,7 +61,7 @@ Or use a JSON spec:
 ```
 
 ```powershell
-uv run sceneapi-bench api-surface --base-url http://127.0.0.1:8000 --spec .\my-backend.json
+uv run scenebench api-surface --base-url http://127.0.0.1:8000 --spec .\my-backend.json
 ```
 
 The command exits non-zero if required actions are missing, forbidden actions
@@ -72,7 +72,7 @@ port:
 
 ```powershell
 uv run --with-editable ..\sfmapi --with-editable ..\sfmapi_hloc `
-  sceneapi-bench local-api-surface `
+  scenebench local-api-surface `
   --backend sfmapi_hloc.backend:HlocBackend `
   --backend-id hloc `
   --preset hloc
@@ -80,14 +80,14 @@ uv run --with-editable ..\sfmapi --with-editable ..\sfmapi_hloc `
 
 ## Plugin E2E Conformance
 
-`sceneapi-bench run` wraps the repo E2E suites that exercise installed plugins
+`scenebench run` wraps the repo E2E suites that exercise installed plugins
 through UV. The default `plugins` suite drives the Python API and the C++ API +
 bridge against the same provider matrix. Missing engines, unavailable devices,
 and skipped rows are reported as conformance failures so the root cause is
 visible in the report tails.
 
 ```powershell
-uv run sceneapi-bench run `
+uv run scenebench run `
   --suite plugins `
   --dataset bicycle `
   --backend both `
@@ -112,10 +112,10 @@ Additional suites:
 Useful variants:
 
 ```powershell
-uv run sceneapi-bench run --suite vismatch --dataset bicycle --backend cpp --models xfeat --device cpu
-uv run sceneapi-bench run --suite vismatch --backend cpp --all-supported-models --device cuda
-uv run sceneapi-bench run --suite all --output .\bench-report.json
-uv run sceneapi-bench report .\bench-report.json --format json
+uv run scenebench run --suite vismatch --dataset bicycle --backend cpp --models xfeat --device cpu
+uv run scenebench run --suite vismatch --backend cpp --all-supported-models --device cuda
+uv run scenebench run --suite all --output .\bench-report.json
+uv run scenebench report .\bench-report.json --format json
 ```
 
 Use `--dry-run --json` to validate command construction without running heavy
@@ -137,7 +137,7 @@ groups are registered today:
 
 These ride the portable `/v1/projects/{pid}/pipelines/{recipe}` route
 (`pipeline_recipe="incremental"`), have direct HTTPS mirrors (GitHub release
-assets), and can be downloaded in-process via `sceneapi-bench fetch`. The
+assets), and can be downloaded in-process via `scenebench fetch`. The
 fetcher verifies the archive against a pinned sha256 before extracting.
 Provided by the COLMAP authors for research/demo use; see the COLMAP datasets
 page for upstream terms.
@@ -160,8 +160,8 @@ using it in a commercial benchmark report.
 Fetch and extract an auto-fetchable sample to the local cache:
 
 ```powershell
-uv run sceneapi-bench fetch colmap-south-building
-uv run sceneapi-bench fetch spheresfm-campus-parterre
+uv run scenebench fetch colmap-south-building
+uv run scenebench fetch spheresfm-campus-parterre
 ```
 
 The cache root is `$XDG_CACHE_HOME/sfmapi-bench/datasets` or
@@ -174,14 +174,14 @@ re-download and re-extract.
 List dataset manifests, including download mirrors:
 
 ```powershell
-uv run sceneapi-bench list-datasets --backend spheresfm --json
+uv run scenebench list-datasets --backend spheresfm --json
 ```
 
 After downloading and unpacking a dataset, render the action payload for the
 SphereSfM backend:
 
 ```powershell
-uv run sceneapi-bench dataset-inputs spheresfm-campus-parterre `
+uv run scenebench dataset-inputs spheresfm-campus-parterre `
   --dataset-root C:\data\spheresfm\campus-parterre `
   --workspace-root C:\bench\spheresfm\campus-parterre
 ```

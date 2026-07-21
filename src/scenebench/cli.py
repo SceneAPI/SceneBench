@@ -25,7 +25,7 @@ from .presets import PRESETS
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="sceneapi-bench")
+    parser = argparse.ArgumentParser(prog="scenebench")
     subcommands = parser.add_subparsers(dest="command", required=True)
 
     list_presets = subcommands.add_parser("list-presets", help="List built-in presets.")
@@ -169,7 +169,7 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument("--output", type=Path, help="Write JSON report to this path.")
     run.set_defaults(func=_run_conformance)
 
-    report = subcommands.add_parser("report", help="Read a sceneapi-bench JSON report.")
+    report = subcommands.add_parser("report", help="Read a scenebench JSON report.")
     report.add_argument("path", type=Path)
     report.add_argument("--format", choices=("text", "json"), default="text")
     report.set_defaults(func=_report)

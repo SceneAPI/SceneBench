@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from sceneapi_bench.cli import main
-from sceneapi_bench.presets import PRESETS
+from scenebench.cli import main
+from scenebench.presets import PRESETS
 
 
 def test_list_presets(capsys) -> None:

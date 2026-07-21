@@ -36,8 +36,8 @@ jobs:
           uv pip install -e . --no-deps
       - name: Validate benchmark utilities
         run: |
-          .venv/bin/sceneapi-bench geometry-check
-          .venv/bin/sceneapi-bench list-datasets
+          .venv/bin/scenebench geometry-check
+          .venv/bin/scenebench list-datasets
       - name: Check live API surface
         if: github.event_name == 'workflow_dispatch' && inputs.base_url != ''
-        run: .venv/bin/sceneapi-bench api-surface --base-url "${{ inputs.base_url }}" --preset generic
+        run: .venv/bin/scenebench api-surface --base-url "${{ inputs.base_url }}" --preset generic

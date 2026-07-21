@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from sceneapi_bench.cli import main
-from sceneapi_bench.datasets import (
+from scenebench.cli import main
+from scenebench.datasets import (
     DATASETS,
     BenchmarkDataset,
     DatasetFetchError,
@@ -269,7 +269,7 @@ def test_cli_fetch_extracts_into_cache(
 ) -> None:
     """The ``fetch`` CLI verb downloads + extracts when the cache is
     empty. Patches the fetcher to avoid the network."""
-    import sceneapi_bench.datasets as ds_mod
+    import scenebench.datasets as ds_mod
 
     archive = _build_fake_archive(fake_dataset.id)
     monkeypatch.setattr(ds_mod, "_http_fetch", _fake_fetcher(archive))
